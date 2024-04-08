@@ -44,10 +44,10 @@ unsigned long long int iv = 22176790;
 
 // admin keycard identifier
 byte registrationIdentifier[] = "Registration";
-byte deletionIdentifier[] = "Deletion";
+byte deletionIdentifier[] = "Deletion"
 
 void setup() {
-  // init pins
+    // init pins
   pinMode(EMAG, OUTPUT);
   pinMode(BUZZ, OUTPUT);
   pinMode(LED_BUILTIN, OUTPUT);
@@ -56,54 +56,17 @@ void setup() {
   mfrc.init();
 
   // init chipCount
+  EEPROM.update(0, 0);
   registeredChipCount = EEPROM.read(0);
 
   digitalWrite(EMAG, HIGH);  // lock the door
   digitalWrite(BUZZ, HIGH);  // buzz because you can
   digitalWrite(LED_BUILTIN, HIGH);
 
-  delay(50);
+  delay(250);
 
   digitalWrite(BUZZ, LOW);
   digitalWrite(LED_BUILTIN, LOW);
 }
 
-void loop() {
-  switch (current){
-    case LOCKED:
-      // todo: authenticate card
-      if (mfrc.detectTag()){
-        next = UNLOCKED;
-      }
-      break;
-    
-    case UNLOCKED:
-      if (millis() > changeStateAt){
-        next = LOCKED;
-      }
-      break;
-
-    // todo: case WRITING_CARD
-    // todo: case DELETING_CARD
-  }
-
-  if (next != current){
-    switch (next){
-      case LOCKED:
-        digitalWrite(EMAG, HIGH);
-        digitalWrite(BUZZ, LOW);
-        break;
-
-      case UNLOCKED:
-        digitalWrite(EMAG, LOW);
-        digitalWrite(BUZZ, HIGH);
-        changeStateAt = millis() + 2000;
-        break;
-
-      // todo: case WRITING_CARD
-      // todo: case DELETING_CARD
-    }
-
-    current = next;
-  }
-}
+// todo: create write and delete cards
