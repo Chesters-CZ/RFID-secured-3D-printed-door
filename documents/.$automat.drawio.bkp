@@ -1,0 +1,102 @@
+<mxfile host="Electron" modified="2024-04-22T16:13:23.017Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.2.5 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="3yZuz_qY9h0gMnBWhU5d" version="24.2.5" type="device">
+  <diagram name="Page-1" id="Sosfxj9-epqt_NzLnx9W">
+    <mxGraphModel dx="811" dy="470" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="YbeovPAnZeOtdTucBNV0-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="YbeovPAnZeOtdTucBNV0-1" target="YbeovPAnZeOtdTucBNV0-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-1" value="START" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+          <mxGeometry x="360" y="80" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="YbeovPAnZeOtdTucBNV0-2" target="YbeovPAnZeOtdTucBNV0-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=1;" edge="1" parent="1" source="YbeovPAnZeOtdTucBNV0-2" target="YbeovPAnZeOtdTucBNV0-7">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="520" y="240" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=1;" edge="1" parent="1" source="YbeovPAnZeOtdTucBNV0-2" target="YbeovPAnZeOtdTucBNV0-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0;exitDx=0;exitDy=0;curved=1;entryX=1;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="YbeovPAnZeOtdTucBNV0-2" target="YbeovPAnZeOtdTucBNV0-2">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="470" y="180" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="428" y="220" />
+              <mxPoint x="490" y="220" />
+              <mxPoint x="490" y="160" />
+              <mxPoint x="428" y="160" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-2" value="LOCKED" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+          <mxGeometry x="360" y="200" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0;entryDx=0;entryDy=0;curved=1;" edge="1" parent="1" source="YbeovPAnZeOtdTucBNV0-5" target="YbeovPAnZeOtdTucBNV0-2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="400" y="480" />
+              <mxPoint x="160" y="480" />
+              <mxPoint x="160" y="212" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-5" value="UNLOCKED" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+          <mxGeometry x="360" y="320" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;curved=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="372" y="211.9999999999999" as="targetPoint" />
+            <mxPoint x="282" y="402" as="sourcePoint" />
+            <Array as="points">
+              <mxPoint x="282" y="452" />
+              <mxPoint x="160" y="452" />
+              <mxPoint x="160" y="212" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-6" value="WRITING&lt;div&gt;CARD&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+          <mxGeometry x="240" y="320" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0;entryDx=0;entryDy=0;curved=1;" edge="1" parent="1" source="YbeovPAnZeOtdTucBNV0-7" target="YbeovPAnZeOtdTucBNV0-2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="520" y="480" />
+              <mxPoint x="160" y="480" />
+              <mxPoint x="160" y="212" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-7" value="DELETING&lt;div&gt;CARD&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+          <mxGeometry x="480" y="320" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-13" value="Načtena neplatná karta" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;labelBackgroundColor=default;" vertex="1" parent="1">
+          <mxGeometry x="440" y="175" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-16" value="Načtena platná karta" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;labelBackgroundColor=default;" vertex="1" parent="1">
+          <mxGeometry x="360" y="282" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-22" value="Načtena mazací karta" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;labelBackgroundColor=default;" vertex="1" parent="1">
+          <mxGeometry x="470" y="250" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-23" value="Načtena zapisovací karta" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;labelBackgroundColor=default;" vertex="1" parent="1">
+          <mxGeometry x="260" y="252" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-24" value="Timeout ~2s" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;labelBackgroundColor=default;" vertex="1" parent="1">
+          <mxGeometry x="360" y="420" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-25" value="Timeout ~2s&lt;div&gt;nebo&lt;/div&gt;&lt;div&gt;úspěšná registrace&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;labelBackgroundColor=default;" vertex="1" parent="1">
+          <mxGeometry x="215" y="410" width="130" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="YbeovPAnZeOtdTucBNV0-26" value="Timeout ~2s&lt;div&gt;nebo&lt;/div&gt;&lt;div&gt;úspěšná deregistrace&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;labelBackgroundColor=default;" vertex="1" parent="1">
+          <mxGeometry x="455" y="410" width="130" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
