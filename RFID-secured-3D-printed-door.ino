@@ -65,7 +65,8 @@ void setup() {
   mfrc.init();
   Serial.begin(9600);
 
-  while (!Serial);
+  while (!Serial)
+    ;
 
   Serial.println(F("\n\nStarting door module..."));
 
@@ -215,6 +216,10 @@ void setup() {
 }
 
 void loop() {
+  if (digitalRead(INIT_BTN) == LOW){
+    debugPrintEEPROM();
+  }
+
   byte tagId[4];
   switch (current) {
     case LOCKED:
@@ -246,7 +251,7 @@ void loop() {
 
 
         // read admin identifier and check if it exists
-        readSize = mfrc.readFileSize(2, "aID");
+        readSize = mfrc.readFileSize(3, "aID");
 
         // if no admin record found, the card is unlock only
         if (readSize < 0) {
@@ -305,7 +310,7 @@ void loop() {
         delay(100);
 
         // check if card is registered
-        if (findEntryOnEEPROM(tagId)) {
+        if (findEntryOnEEPROM(tagId) != -1) {
           Serial.println(F("Card is already added."));
           mfrc.unselectMifareTag();
           beepWrong();
@@ -418,8 +423,8 @@ int addCard(byte cardID[4]) {
   aes.set_IV(0);
   aes.do_aes_encrypt(cardID, 4, cipher, key, keyBits + 1);
 
-  for (byte i  = 0; i < 32; i++)
-  Serial.print(cipher[i]);
+  for (byte i = 0; i < 32; i++)
+    Serial.print(cipher[i]);
 
   Serial.println();
 
@@ -430,11 +435,12 @@ int addSpecialCard(bool isDelCard) {
   byte cipher[32] = { 0 };
   aes.set_IV(0);
   aes.do_aes_encrypt(adminKeyIdentifiers[isDelCard], 7, cipher, key, keyBits + 1);
-  return mfrc.writeFile(16, "aID", cipher, 32);
+  return mfrc.writeFile(3, "aID", cipher, 32);
 }
 
 // find first empty spot on EEPROM
 int findSpaceOnEEPROM() {
+  Serial.println(F("Searching for space on EEPROM"));
   for (int cardNum = 0; cardNum < 256; cardNum++) {
     bool isEmpty = true;
 
@@ -446,15 +452,29 @@ int findSpaceOnEEPROM() {
     }
 
     if (isEmpty) {
-      return cardNum;
+      Serial.print(F("Found space starting at "));
+      Serial.println(cardNum * 4);
+      return cardNum * 4;
     }
   }
 
+  Serial.println(F("No space found, EEPROM is full."));
   return -1;
 }
 
 // find first place the tag is present at
 int findEntryOnEEPROM(byte data[4]) {
+  Serial.print(F("Searching for "));
+
+  for (byte i = 0; i < 4; i++) {
+    Serial.print(data[i]);
+    Serial.print(F(" "));
+  }
+
+  // debugPrintEEPROM();
+
+  Serial.println();
+
   for (int cardNum = 0; cardNum < 256; cardNum++) {
     bool isEqual = true;
 
@@ -466,17 +486,33 @@ int findEntryOnEEPROM(byte data[4]) {
     }
 
     if (isEqual) {
-      return cardNum;
+      Serial.print(F("Found starting at "));
+      Serial.println(cardNum*4);
+
+      return cardNum*4;
     }
   }
 
+  Serial.println(F("ID not present on EEPROM"));
   return -1;
+}
+
+void debugPrintEEPROM() {
+  Serial.println("EEPROM:");
+  for (int cardNum = 0; cardNum < 256; cardNum++) {
+    for (byte idChar = 0; idChar < 4; idChar++) {
+      Serial.print(EEPROM.read(cardNum * 4 + idChar));
+      Serial.print(" ");
+    }
+    Serial.println();
+  }
+  Serial.println();
 }
 
 void deleteEntryFromEEPROM(byte data[4]) {
   int dataAddr = findEntryOnEEPROM(data);
 
-  if (dataAddr == -1){
+  if (dataAddr == -1) {
     return;
   }
 
@@ -485,30 +521,37 @@ void deleteEntryFromEEPROM(byte data[4]) {
   }
 }
 
+bool writeToEEPROM(byte data[4]) {
+  int address = findSpaceOnEEPROM();
+
+  if (address == -1)
+    return false;
+
+  for (byte i = 0; i < 4; i++) {
+    EEPROM.update(address++, data[i]);
+  }
+
+  return true;
+}
+
 // compares strings of different lengths, expecting the rest of the longer string to be zeroed
-bool strEqual(byte smaller[], byte larger[], int smallerSize, int largerSize) {
+bool strEqual(byte smaller[], byte larger[], int charsChecked) {
   int i = 0;
 
-  for (; i< smallerSize; i++){
+  for (; i < charsChecked; i++) {
     Serial.print(smaller[i]);
   }
 
   Serial.println();
 
-  for (i = 0; i < largerSize; i++){
+  for (i = 0; i < 32; i++) {
     Serial.print(larger[i]);
   }
 
   Serial.println();
 
-  for (; i < smallerSize; i++) {
+  for (i = 0; i < charsChecked; i++) {
     if (smaller[i] != larger[i]) {
-      return false;
-    }
-  }
-
-  for (; i < largerSize; i++) {
-    if (larger[i] != 0) {
       return false;
     }
   }
@@ -543,7 +586,7 @@ bool validateCardId(byte tagId[4], int readSize) {
   }
 
   Serial.print("Decrypting ");
-  Serial.write(readBytes, readSize+1);
+  Serial.write(readBytes, readSize + 1);
 
   // cryptography
   aes.set_IV(0);
@@ -553,7 +596,7 @@ bool validateCardId(byte tagId[4], int readSize) {
   Serial.println("Verifying...");
 
   // check if strings are equal
-  if (!strEqual(tagId, plainBytes, 4, readSize)) {
+  if (!strEqual(tagId, plainBytes, 4)) {
     Serial.println("Decrypted ID does not match tag's");
     beepWrong();
     return false;
@@ -573,7 +616,7 @@ byte validateAdminId(byte tagId[4], int readSize) {
   char plainBytes[readSize];
 
   // read
-  int result = mfrc.readFile(2, "aID", (unsigned char *)&readBytes, readSize);
+  int result = mfrc.readFile(3, "aID", (unsigned char *)&readBytes, readSize);
 
   if (result < 0) {
     beepErr(result);
@@ -582,21 +625,21 @@ byte validateAdminId(byte tagId[4], int readSize) {
 
   // cryptography
   aes.set_IV(0);
-  aes.do_aes_decrypt((unsigned char *)&readBytes, readSize, (unsigned char *)&plainBytes, key, keyBits + 1, 0);
+  aes.do_aes_decrypt(readBytes, readSize, plainBytes, key, keyBits + 1);
 
   // check if strings are equal
-  if (strEqual(adminKeyIdentifiers[0], plainBytes, 7, readSize)) {
+  if (strEqual(adminKeyIdentifiers[0], plainBytes, 7)) {
     return 0;
   }
 
-  if (strEqual(adminKeyIdentifiers[1], plainBytes, 7, readSize)) {
+  if (strEqual(adminKeyIdentifiers[1], plainBytes, 7)) {
     return 1;
   }
 
   return -1;
 }
 
-void doMorse(const char* data){
+void doMorse(const char *data) {
   Serial.print(F("Morse: "));
   Serial.println(data);
   morse.send(data);
@@ -696,19 +739,6 @@ void beepWrong() {
   delay(250);
 }
 
-bool writeToEEPROM(byte data[4]) {
-  int address = findSpaceOnEEPROM();
-
-  if (address == -1)
-    return false;
-
-  for (byte i = 0; i < 4; i++) {
-    EEPROM.update(address++, data[i]);
-  }
-
-  return true;
-}
-
 // ... (e-rror code)
 void beepErr(int code) {
   Serial.print(F("ERROR "));
@@ -739,7 +769,7 @@ void beepErr(int code) {
     code += 2500;
   }
 
-  if (code < -2000){
+  if (code < -2000) {
     // writeFile + writeRaw
     doMorse("BAD WRITEF CUZ ");
     code += 2000;
