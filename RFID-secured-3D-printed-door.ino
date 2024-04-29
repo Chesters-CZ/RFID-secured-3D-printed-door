@@ -17,9 +17,9 @@
 // pin definition
 #define EMAG 2
 #define BUZZ 3
+#define INIT_BTN 4
 #define RFID_SDA 5
 #define RFID_RST 6
-#define INIT_BTN 4
 // also RFID_MOSI 11
 // also RFID_MISO 12
 // also RFID_SCK 13
@@ -34,8 +34,7 @@ cww_MorseTx morse(3, 10);
 
 // HOLDING THE INIT_BTN AT STARTUP WILL:
 //  - forget ALL saved keycards
-//  - set the next two cards as the
-//    writing and deleting card respectively
+//  - set the first two cards as the writing and deleting card respectively
 
 enum STATE {
   LOCKED,
@@ -54,11 +53,6 @@ byte keyBits;
 
 // admin keycard identifier
 byte adminKeyIdentifiers[][7] = { "AddCard", "DelCard" };
-
-// card registers
-// fixme: this shit is really fucking big
-byte cards[255][4] = { 0 };
-
 
 void setup() {
   // init pins
@@ -89,14 +83,15 @@ void setup() {
 
       while (true) {
         beepErr(0);
-        delay(1000);
+        morse.send("BAD KEY");
+        delay(5000);
       }
   }
 
   // todo: detect pushed INIT_BTN and create write and delete cards.
   if (digitalRead(INIT_BTN) == LOW) {
     digitalWrite(EMAG, HIGH);  // lock the door
-    digitalWrite(BUZZ, HIGH);  // an "I'm ready" beep
+    digitalWrite(BUZZ, HIGH);  // a "reset" beep
     digitalWrite(LED_BUILTIN, HIGH);
 
     delay(1500);
@@ -136,7 +131,7 @@ void setup() {
 
       mfrc.unselectMifareTag();
 
-      if (writeToEEPROM(tagId);) {
+      if (writeToEEPROM(tagId)) {
         beepSucc();
         break;
       }
@@ -173,7 +168,7 @@ void setup() {
       mfrc.unselectMifareTag();
       beepSucc();
 
-      if (writeToEEPROM(tagId);) {
+      if (writeToEEPROM(tagId)) {
         beepSucc();
         break;
       }
@@ -184,9 +179,6 @@ void setup() {
   }
 
   delay(500);
-
-  // read known card ids
-  reloadFromEEPROM();
 
   digitalWrite(EMAG, HIGH);  // lock the door
 
@@ -205,58 +197,61 @@ void setup() {
 void loop() {
   switch (current) {
     case LOCKED:
-      // todo: authenticate card
       byte tagId[4];
       if (mfrc.detectTag(tagId)) {
-        // make sure the chip is close enough
+        // wait for the chip to get close enough
         delay(100);
 
         int readSize = mfrc.readFileSize(1, "encryptedID");
 
-        // if error, deal with it and try again
+        // if error, beep and loop again
         if (readSize < 0) {
           beepErr(readSize);
           mfrc.unselectMifareTag();
           return 0;
         }
 
-        if (!validateCardID(tagId, readSize)) {
+        // if card is not known, beep and loop
+        if (!validateCardId(tagId, readSize)) {
           mfrc.unselectMifareTag();
           break;
         }
 
-        // clear readBytes and plainBytes
-        for (int i = 0; i < readSize; i++) {
-          readBytes[i] = plainBytes[i] = 0;
-        }
 
-
-        // read admin identifier and check admin
+        // read admin identifier and check if it exists
         readSize = mfrc.readFileSize(2, "adminID");
 
-        // if error, deal with it and try again
+        // if no admin record found, the card is unlock only
         if (readSize < 0) {
           next = UNLOCKED;
           mfrc.unselectMifareTag();
           break;
         }
 
-        byte cardType = validateAdminID(tagId, readSize);
+        // admin record was found, validate it
+        byte cardType = validateAdminId(tagId, readSize);
 
+        // process the results
         switch (cardType) {
           case -1:
+            // admin identifier is not valid,
+            // it's just an unlock card
             beepSucc();
             next = UNLOCKED;
             break;
           case 0:
+            // admin identifier valid
             beepAdd();
             next = WRITING_CARD;
             break;
           case 1:
+            // admin identifier valid
             beepDel();
             next = DELETING_CARD;
             break;
           default:
+            // this should never occur
+            beepErr(-70);
             break;
         }
         mfrc.unselectMifareTag();
@@ -270,38 +265,47 @@ void loop() {
       break;
 
     case WRITING_CARD:
-
+      //
+      byte tagId[4];
       if (mfrc.detectTag(tagId)) {
-        if(!findEntryOnEEPROM(tagId)){
-              // todo: chyba
-        }
+        delay
 
+        // check if card is registered
+        if (!findEntryOnEEPROM(tagId)) {
+          mfrc.unselectMifareTag();
+          beepWrong();
+          next = LOCKED;
+          break;
+        }
 
         int result = addCard(tagId);
 
-
+        // deal with errors from addCard
         if (result < 0) {
           mfrc.unselectMifareTag();
           beepErr(result);
           next = LOCKED;
-          continue;
+          break;
         }
 
+        // disconnect tag
         mfrc.unselectMifareTag();
-              
-      if (writeToEEPROM(tagId);) {
+
+        // write to eeprom was successful
+        if (writeToEEPROM(tagId)) {
+          beepSucc();
+          break;
+        }
+
+        // ran out of eeprom space
+        beepErr(-69);
         beepSucc();
         break;
       }
 
-      beepErr(-69);
-        beepSucc();
-        break;
-      }
-
-      if (millis() > statechangeAt) {
-        beepErr();
-        next = LOCKED
+      if (millis() > changeStateAt) {
+        beepErr(0);
+        next = LOCKED;
       }
       break;
       // todo: case DELETING_CARD
@@ -325,7 +329,7 @@ void loop() {
         break;
 
       case DELETING_CARD:
-        stateChangeAt = millis() + 2000;
+        changeStateAt = millis() + 2000;
         break;
     }
 
@@ -365,7 +369,7 @@ int findSpaceOnEEPROM() {
   return -1;
 }
 
-// find first place the data is present at
+// find first place the tag is present at
 int findEntryOnEEPROM(byte data[4]) {
   for (int cardNum = 0; cardNum < 256; cardNum++) {
     bool isEqual = true;
@@ -385,6 +389,7 @@ int findEntryOnEEPROM(byte data[4]) {
   return -1;
 }
 
+// compares strings of different lengths, expecting the rest of the longer string to be zeroed
 bool strEqual(byte smaller[], byte larger[], int smallerSize, int largerSize) {
   int i = 0;
 
@@ -403,8 +408,8 @@ bool strEqual(byte smaller[], byte larger[], int smallerSize, int largerSize) {
   return true;
 }
 
-// beeps failures
-bool validateCardId(bytes tagId[4], int readSize) {
+// beeps failures only
+bool validateCardId(byte tagId[4], int readSize) {
   byte readBytes[readSize];
   char plainBytes[readSize];
 
@@ -426,12 +431,15 @@ bool validateCardId(bytes tagId[4], int readSize) {
     return false;
   }
 
-  // todo: check if string present on EEPROM
+  if (findEntryOnEEPROM(tagId) == -1) {
+    beepWrong();
+    return false;
+  }
 
   return true;
 }
 
-byte validateAdminId(bytes tagId[4], int readSize) {
+byte validateAdminId(byte tagId[4], int readSize) {
   byte readBytes[readSize];
   char plainBytes[readSize];
 
@@ -552,22 +560,14 @@ bool writeToEEPROM(byte data[4]) {
   if (address == -1)
     return false;
 
-  for (byte b : data) {
-    EEPROM.update(address++, b);
+  for (byte i = 0; i < 4; i++) {
+    EEPROM.update(address++, data[i]);
   }
 
   return true;
 }
 
-void readFromEEPROM(){
-  for (int cardNum = 0; cardNum < 256; cardNum++) {
-    for (byte idChar = 0; idChar < 4; idChar++) {
-      cards[cardNum][idChar] = EEPROM.read(cardNum * 4 + idChar);
-    }
-  }
-}
-
-// ... (error code)
+// ... (e-rror code)
 void beepErr(int code) {
   digitalWrite(BUZZ, HIGH);
   delay(50);
@@ -643,6 +643,8 @@ void beepErr(int code) {
     case -69:   // addToEEPROM
       morse.send("NO SPACE");
       break;
+    case -70:  // unexpected behavior
+      morse.send("BAD CODE");
     case -1020:  // readFile
       morse.send("SMALL BUFF");
     default:
