@@ -65,6 +65,8 @@ void setup() {
   mfrc.init();
   Serial.begin(9600);
 
+  while (!Serial);
+
   Serial.println(F("\n\nStarting door module..."));
 
   // init keyBits
@@ -413,14 +415,22 @@ void loop() {
 
 int addCard(byte cardID[4]) {
   byte cipher[32] = { 0 };
+  aes.set_IV(0);
   aes.do_aes_encrypt(cardID, 4, cipher, key, keyBits + 1);
+
+  for (byte i  = 0; i < 32; i++)
+  Serial.print(cipher[i]);
+
+  Serial.println();
+
   return mfrc.writeFile(1, "eID", cipher, 32);
 }
 
 int addSpecialCard(bool isDelCard) {
   byte cipher[32] = { 0 };
+  aes.set_IV(0);
   aes.do_aes_encrypt(adminKeyIdentifiers[isDelCard], 7, cipher, key, keyBits + 1);
-  return mfrc.writeFile(2, "aID", cipher, 32);
+  return mfrc.writeFile(16, "aID", cipher, 32);
 }
 
 // find first empty spot on EEPROM
@@ -479,6 +489,18 @@ void deleteEntryFromEEPROM(byte data[4]) {
 bool strEqual(byte smaller[], byte larger[], int smallerSize, int largerSize) {
   int i = 0;
 
+  for (; i< smallerSize; i++){
+    Serial.print(smaller[i]);
+  }
+
+  Serial.println();
+
+  for (i = 0; i < largerSize; i++){
+    Serial.print(larger[i]);
+  }
+
+  Serial.println();
+
   for (; i < smallerSize; i++) {
     if (smaller[i] != larger[i]) {
       return false;
@@ -496,8 +518,21 @@ bool strEqual(byte smaller[], byte larger[], int smallerSize, int largerSize) {
 
 // beeps failures only
 bool validateCardId(byte tagId[4], int readSize) {
-  byte readBytes[readSize];
-  char plainBytes[readSize];
+  Serial.print("Validating card ID ");
+  Serial.print(tagId[0]);
+  Serial.print(" ");
+  Serial.print(tagId[1]);
+  Serial.print(" ");
+  Serial.print(tagId[2]);
+  Serial.print(" ");
+  Serial.print(tagId[3]);
+  Serial.print(", ");
+  Serial.println(readSize);
+
+  unsigned char readBytes[readSize];
+  unsigned char plainBytes[readSize];
+
+  Serial.println("Reading file...");
 
   // read
   int result = mfrc.readFile(1, "eID", (unsigned char *)&readBytes, readSize);
@@ -507,17 +542,25 @@ bool validateCardId(byte tagId[4], int readSize) {
     return false;
   }
 
+  Serial.print("Decrypting ");
+  Serial.write(readBytes, readSize+1);
+
   // cryptography
   aes.set_IV(0);
-  aes.do_aes_decrypt((unsigned char *)&readBytes, readSize, (unsigned char *)&plainBytes, key, keyBits + 1, 0);
+  Serial.println("...");
+  aes.do_aes_decrypt(readBytes, readSize, plainBytes, key, keyBits + 1);
+
+  Serial.println("Verifying...");
 
   // check if strings are equal
   if (!strEqual(tagId, plainBytes, 4, readSize)) {
+    Serial.println("Decrypted ID does not match tag's");
     beepWrong();
     return false;
   }
 
   if (findEntryOnEEPROM(tagId) == -1) {
+    Serial.println("Tag ID unknown");
     beepWrong();
     return false;
   }
