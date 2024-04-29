@@ -1,14 +1,14 @@
+#include <MemoryUsage.h>
+
 // https://github.com/ridencww/cww_MorseTx
 #include <cww_MorseTx.h>
 
 // https://github.com/spaniakos/AES
 #include <AES.h>
 #include <AES_config.h>
-#include <printf.h>
 
 // https://github.com/pablo-sampaio/easy_mfrc522
 #include <EasyMFRC522.h>
-#include <RfidDictionaryView.h>
 
 // Arduino libraries
 #include <Wire.h>
@@ -63,6 +63,9 @@ void setup() {
 
   // init libraries
   mfrc.init();
+  Serial.begin(9600);
+
+  Serial.println(F("\n\nStarting door module..."));
 
   // init keyBits
   switch (strlen(key)) {
@@ -78,18 +81,22 @@ void setup() {
     default:
       // key has invalid length, cannot continue
       beepErr(0);
-      morse.send("BAD KEY");
+      doMorse("BAD KEY");
       delay(500);
 
       while (true) {
         beepErr(0);
-        morse.send("BAD KEY");
+        doMorse("BAD KEY");
         delay(5000);
       }
   }
 
+  Serial.println(F("Key size OK"));
+
   // todo: detect pushed INIT_BTN and create write and delete cards.
   if (digitalRead(INIT_BTN) == LOW) {
+    Serial.println(F("\nINIT BTN pushed, resetting saved cards..."));
+
     digitalWrite(EMAG, HIGH);  // lock the door
     digitalWrite(BUZZ, HIGH);  // a "reset" beep
     digitalWrite(LED_BUILTIN, HIGH);
@@ -104,12 +111,18 @@ void setup() {
       EEPROM.update(i, 0);
     }
 
+    Serial.println(F("EEPROM cleared"));
+
     // create write card
     byte tagId[4];
 
     while (true) {
+      Serial.println(F("Approach WRITE card"));
+
       while (!mfrc.detectTag(tagId)) {
       }
+
+      Serial.println(F("Card detected"));
 
       int result = addCard(tagId);
 
@@ -118,8 +131,6 @@ void setup() {
         beepErr(result);
         continue;
       }
-
-      beepSucc();
 
       result = addSpecialCard(false);
 
@@ -132,7 +143,7 @@ void setup() {
       mfrc.unselectMifareTag();
 
       if (writeToEEPROM(tagId)) {
-        beepSucc();
+        beepAdd();
         break;
       }
 
@@ -140,12 +151,18 @@ void setup() {
       break;
     }
 
+    Serial.println(F("WRITE card created.\n"));
+
     delay(500);
 
     // create delete card
     while (true) {
+      Serial.println(F("Approach DELETE card"));
+
       while (!mfrc.detectTag(tagId)) {
       }
+
+      Serial.println(F("Card detected"));
 
       int result = addCard(tagId);
 
@@ -154,8 +171,6 @@ void setup() {
         beepErr(result);
         continue;
       }
-
-      beepSucc();
 
       result = addSpecialCard(true);
 
@@ -166,16 +181,17 @@ void setup() {
       }
 
       mfrc.unselectMifareTag();
-      beepSucc();
 
       if (writeToEEPROM(tagId)) {
-        beepSucc();
+        beepAdd();
         break;
       }
 
       beepErr(-69);
       break;
     }
+
+    Serial.println(F("DELETE card created.\n"));
   }
 
   delay(500);
@@ -192,6 +208,8 @@ void setup() {
   digitalWrite(BUZZ, HIGH);
   delay(50);
   digitalWrite(BUZZ, LOW);
+
+  Serial.println(F("Device init complete\n"));
 }
 
 void loop() {
@@ -199,10 +217,16 @@ void loop() {
   switch (current) {
     case LOCKED:
       if (mfrc.detectTag(tagId)) {
+        Serial.println(F("\nCard detected!"));
+
         // wait for the chip to get close enough
         delay(100);
 
-        int readSize = mfrc.readFileSize(1, "encryptedID");
+        Serial.println(F("Reading file size..."));
+
+        FREERAM_PRINT;
+
+        int readSize = mfrc.readFileSize(1, "eID");
 
         // if error, beep and loop again
         if (readSize < 0) {
@@ -213,20 +237,24 @@ void loop() {
 
         // if card is not known, beep and loop
         if (!validateCardId(tagId, readSize)) {
+          Serial.println(F("Card could not be authenticated."));
           mfrc.unselectMifareTag();
           break;
         }
 
 
         // read admin identifier and check if it exists
-        readSize = mfrc.readFileSize(2, "adminID");
+        readSize = mfrc.readFileSize(2, "aID");
 
         // if no admin record found, the card is unlock only
         if (readSize < 0) {
+          Serial.println("Card authenticated as UNLOCK\n");
           next = UNLOCKED;
           mfrc.unselectMifareTag();
           break;
         }
+
+        Serial.println(F("Admin sector detected, authenticating..."));
 
         // admin record was found, validate it
         byte cardType = validateAdminId(tagId, readSize);
@@ -236,16 +264,19 @@ void loop() {
           case -1:
             // admin identifier is not valid,
             // it's just an unlock card
+            Serial.println(F("Admin sector invalid, card is UNLOCK only."));
             beepSucc();
             next = UNLOCKED;
             break;
           case 0:
             // admin identifier valid
+            Serial.println(F("Card authenticated as WRITE."));
             beepAdd();
             next = WRITING_CARD;
             break;
           case 1:
             // admin identifier valid
+            Serial.println(F("Card authenticated as DELETE."));
             beepDel();
             next = DELETING_CARD;
             break;
@@ -260,16 +291,20 @@ void loop() {
 
     case UNLOCKED:
       if (millis() > changeStateAt) {
+        Serial.println(F("\nUNLOCK timeout reached."));
         next = LOCKED;
       }
       break;
 
     case WRITING_CARD:
       if (mfrc.detectTag(tagId)) {
+        Serial.println(F("\nCard detected, attempting to add..."));
+
         delay(100);
 
         // check if card is registered
-        if (!findEntryOnEEPROM(tagId)) {
+        if (findEntryOnEEPROM(tagId)) {
+          Serial.println(F("Card is already added."));
           mfrc.unselectMifareTag();
           beepWrong();
           next = LOCKED;
@@ -291,6 +326,7 @@ void loop() {
 
         // write to eeprom was successful
         if (writeToEEPROM(tagId)) {
+          Serial.println(F("Card added successfully."));
           beepSucc();
           next = LOCKED;
           break;
@@ -304,6 +340,7 @@ void loop() {
 
       // timeout
       if (millis() > changeStateAt) {
+        Serial.println(F("\nWRITE timeout reached."));
         beepErr(0);
         next = LOCKED;
       }
@@ -311,16 +348,19 @@ void loop() {
 
     case DELETING_CARD:
       if (mfrc.detectTag(tagId)) {
+        Serial.println(F("\nCard detected, deleting..."));
+
         delay(100);
 
         // delete data on card
         byte blank[32] = { 0 };
-        mfrc.writeFile(1, "encryptedID", blank, 32);
+        mfrc.writeFile(1, "eID", blank, 32);
 
         // delete data on EEPROM
         deleteEntryFromEEPROM(tagId);
 
         // success
+        Serial.println(F("Card successfully deleted."));
         mfrc.unselectMifareTag();
         beepSucc();
         next = LOCKED;
@@ -329,6 +369,7 @@ void loop() {
 
       // timeout
       if (millis() > changeStateAt) {
+        Serial.println(F("DELETE timeout reached."));
         beepErr(0);
         next = LOCKED;
       }
@@ -336,6 +377,11 @@ void loop() {
   }
 
   if (next != current) {
+    Serial.print(F("STATE CHANGE "));
+    Serial.print(current);
+    Serial.print(F(" -> "));
+    Serial.println(next);
+
     switch (next) {
       case LOCKED:
         // stop beeping and lock door
@@ -368,13 +414,13 @@ void loop() {
 int addCard(byte cardID[4]) {
   byte cipher[32] = { 0 };
   aes.do_aes_encrypt(cardID, 4, cipher, key, keyBits + 1);
-  return mfrc.writeFile(1, "encryptedID", cipher, 32);
+  return mfrc.writeFile(1, "eID", cipher, 32);
 }
 
 int addSpecialCard(bool isDelCard) {
   byte cipher[32] = { 0 };
   aes.do_aes_encrypt(adminKeyIdentifiers[isDelCard], 7, cipher, key, keyBits + 1);
-  return mfrc.writeFile(2, "adminID", cipher, 32);
+  return mfrc.writeFile(2, "aID", cipher, 32);
 }
 
 // find first empty spot on EEPROM
@@ -454,7 +500,7 @@ bool validateCardId(byte tagId[4], int readSize) {
   char plainBytes[readSize];
 
   // read
-  int result = mfrc.readFile(1, "encryptedID", (unsigned char *)&readBytes, readSize);
+  int result = mfrc.readFile(1, "eID", (unsigned char *)&readBytes, readSize);
 
   if (result < 0) {
     beepErr(result);
@@ -484,7 +530,7 @@ byte validateAdminId(byte tagId[4], int readSize) {
   char plainBytes[readSize];
 
   // read
-  int result = mfrc.readFile(2, "adminID", (unsigned char *)&readBytes, readSize);
+  int result = mfrc.readFile(2, "aID", (unsigned char *)&readBytes, readSize);
 
   if (result < 0) {
     beepErr(result);
@@ -507,8 +553,15 @@ byte validateAdminId(byte tagId[4], int readSize) {
   return -1;
 }
 
+void doMorse(const char* data){
+  Serial.print(F("Morse: "));
+  Serial.println(data);
+  morse.send(data);
+}
+
 // ok
 void beepSucc() {
+  Serial.println(F("Success!"));
   digitalWrite(BUZZ, HIGH);
   delay(50);
   digitalWrite(BUZZ, LOW);
@@ -517,6 +570,8 @@ void beepSucc() {
 
 // d-á-d (add)
 void beepAdd() {
+  Serial.println(F("Added."));
+
   digitalWrite(BUZZ, HIGH);
   delay(50);
   digitalWrite(BUZZ, LOW);
@@ -535,6 +590,8 @@ void beepAdd() {
 
 // d-é-lll
 void beepDel() {
+  Serial.println(F("Deleted."));
+
   digitalWrite(BUZZ, HIGH);
   delay(50);
   digitalWrite(BUZZ, LOW);
@@ -553,6 +610,8 @@ void beepDel() {
 
 // !!!!!!!!
 void beepWrong() {
+  Serial.println(F("Wrong!"));
+
   digitalWrite(BUZZ, HIGH);
   delay(10);
   digitalWrite(BUZZ, LOW);
@@ -609,6 +668,9 @@ bool writeToEEPROM(byte data[4]) {
 
 // ... (e-rror code)
 void beepErr(int code) {
+  Serial.print(F("ERROR "));
+  Serial.println(code);
+
   digitalWrite(BUZZ, HIGH);
   delay(50);
   digitalWrite(BUZZ, LOW);
@@ -628,26 +690,33 @@ void beepErr(int code) {
     return;
   }
 
-  if (code < -2000) {
+  if (code < -2500) {
     // writeFile + writeRaw
-    morse.send("BAD WRITEF CUZ ");
+    doMorse("BAD WRITEF CUZ ");
+    code += 2500;
+  }
+
+  if (code < -2000){
+    // writeFile + writeRaw
+    doMorse("BAD WRITEF CUZ ");
+    code += 2000;
   }
 
   if (code < -1000 && code > -1020) {
     // readFile error + readFileSize
-    morse.send("BAD READF CUZ ");
+    doMorse("BAD READF CUZ ");
     code += 1000;
   }
 
   if (code < -200 && code > -220) {
     // writeRaw error + writeBlockAndVerify
-    morse.send("BAD WRITE CUZ ");
+    doMorse("BAD WRITE CUZ ");
     code += 200;
   }
 
   if (code < -100 && code > -120) {
     // readRaw error + readBlock
-    morse.send("BAD READ CUZ ");
+    doMorse("BAD READ CUZ ");
     code += 100;
   }
 
@@ -655,39 +724,39 @@ void beepErr(int code) {
     case -1:  // readBlock
     case -3:  // verifyBlock
     case -9:  // readFileSize
-      morse.send("BAD READ");
+      doMorse("BAD READ");
       break;
     case -2:  // readBlock
     case -7:  // writeBlockAndVerify
-      morse.send("BAD SIZE");
+      doMorse("BAD SIZE");
       break;
     case -4:  // verifyBlock
-      morse.send("BAD VERIF");
+      doMorse("BAD VERIF");
       break;
     case -5:  // writeBlockAndVerify
-      morse.send("BAD WRITE");
+      doMorse("BAD WRITE");
       break;
     case -8:    // readFileSize
     case -121:  // readRaw
     case -221:  // writeRaw
-      morse.send("BAD AUTH");
+      doMorse("BAD AUTH");
       break;
     case -10:  // readFileSize
-      morse.send("NO FILE");
+      doMorse("NO FILE");
       break;
     case -11:  // readFileSize
-      morse.send("BAD LABEL");
+      doMorse("BAD LABEL");
       break;
     case -120:  // readRaw
     case -220:  // writeRaw
     case -69:   // addToEEPROM
-      morse.send("NO SPACE");
+      doMorse("NO SPACE");
       break;
     case -70:  // unexpected behavior
-      morse.send("BAD CODE");
+      doMorse("BAD CODE");
     case -1020:  // readFile
-      morse.send("SMALL BUFF");
+      doMorse("SMALL BUFF");
     default:
-      morse.send("BAD ERR");
+      doMorse("BAD ERR");
   }
 }
