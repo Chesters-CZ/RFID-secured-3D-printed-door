@@ -195,9 +195,9 @@ void setup() {
 }
 
 void loop() {
+  byte tagId[4];
   switch (current) {
     case LOCKED:
-      byte tagId[4];
       if (mfrc.detectTag(tagId)) {
         // wait for the chip to get close enough
         delay(100);
@@ -265,10 +265,8 @@ void loop() {
       break;
 
     case WRITING_CARD:
-      //
-      byte tagId[4];
       if (mfrc.detectTag(tagId)) {
-        delay
+        delay(100);
 
         // check if card is registered
         if (!findEntryOnEEPROM(tagId)) {
@@ -294,41 +292,71 @@ void loop() {
         // write to eeprom was successful
         if (writeToEEPROM(tagId)) {
           beepSucc();
+          next = LOCKED;
           break;
         }
 
         // ran out of eeprom space
         beepErr(-69);
-        beepSucc();
+        next = LOCKED;
         break;
       }
 
+      // timeout
       if (millis() > changeStateAt) {
         beepErr(0);
         next = LOCKED;
       }
       break;
-      // todo: case DELETING_CARD
+
+    case DELETING_CARD:
+      if (mfrc.detectTag(tagId)) {
+        delay(100);
+
+        // delete data on card
+        byte blank[32] = { 0 };
+        mfrc.writeFile(1, "encryptedID", blank, 32);
+
+        // delete data on EEPROM
+        deleteEntryFromEEPROM(tagId);
+
+        // success
+        mfrc.unselectMifareTag();
+        beepSucc();
+        next = LOCKED;
+        break;
+      }
+
+      // timeout
+      if (millis() > changeStateAt) {
+        beepErr(0);
+        next = LOCKED;
+      }
+      break;
   }
 
   if (next != current) {
     switch (next) {
       case LOCKED:
+        // stop beeping and lock door
         digitalWrite(EMAG, HIGH);
         digitalWrite(BUZZ, LOW);
         break;
 
       case UNLOCKED:
+        // start beepiong and unlock door
         digitalWrite(EMAG, LOW);
         digitalWrite(BUZZ, HIGH);
         changeStateAt = millis() + 2000;
         break;
 
       case WRITING_CARD:
+        // set timeout and do stuff in the switch case
         changeStateAt = millis() + 2000;
         break;
 
       case DELETING_CARD:
+        // set timeout and do stuff in the switch case
         changeStateAt = millis() + 2000;
         break;
     }
@@ -387,6 +415,18 @@ int findEntryOnEEPROM(byte data[4]) {
   }
 
   return -1;
+}
+
+void deleteEntryFromEEPROM(byte data[4]) {
+  int dataAddr = findEntryOnEEPROM(data);
+
+  if (dataAddr == -1){
+    return;
+  }
+
+  for (byte i = 0; i < 4; i++) {
+    EEPROM.update(dataAddr + i, rand());
+  }
 }
 
 // compares strings of different lengths, expecting the rest of the longer string to be zeroed
