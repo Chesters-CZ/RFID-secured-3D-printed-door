@@ -1,0 +1,1 @@
+Should your electromagnet be weak, you need to stick the coin on the other side of the door and may need to remove the thin wall between the electromagnet and the door.
