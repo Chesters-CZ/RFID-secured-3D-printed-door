@@ -517,7 +517,7 @@ void deleteEntryFromEEPROM(byte data[4]) {
   }
 
   for (byte i = 0; i < 4; i++) {
-    EEPROM.update(dataAddr + i, rand());
+    EEPROM.update(dataAddr + i, 0);
   }
 }
 
